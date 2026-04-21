@@ -1,10 +1,30 @@
-HELP.md
+# ========================
+# 🚀 BUILD FILES
+# ========================
 target/
+build/
+*.class
+*.jar
+*.war
+
+# ========================
+# ⚙️ MAVEN / WRAPPER
+# ========================
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
+# ========================
+# 🧠 IDE FILES
+# ========================
+
+## IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+## Eclipse / STS
 .apt_generated
 .classpath
 .factorypath
@@ -13,21 +33,39 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
+## VS Code
+.vscode/
 
-### NetBeans ###
+## NetBeans
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
-.vscode/
+# ========================
+# 🪵 LOG FILES
+# ========================
+*.log
+logs/
+
+# ========================
+# 🔐 ENV / SECRETS (VERY IMPORTANT)
+# ========================
+.env
+.env.*
+application-local.properties
+application-dev.properties
+application-prod.properties
+
+# ========================
+# 🖥️ OS FILES
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# 🔥 TEMP FILES
+# ========================
+*.tmp
+*.swp

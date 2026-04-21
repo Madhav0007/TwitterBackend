@@ -2,13 +2,19 @@ package com.integ.task.service.impl;
 
 import com.integ.task.dto.PaginationRequestDTO;
 import com.integ.task.dto.PostDto;
+import com.integ.task.dto.PostMediaDto;
 import com.integ.task.entity.Post;
-import com.integ.task.repository.PostRepository;
+import com.integ.task.entity.PostMedia;
+import com.integ.task.entity.UserRole;
+import com.integ.task.repository.*;
+import com.integ.task.service.FileStorageService;
 import com.integ.task.service.LikeService;
 import com.integ.task.service.PostService;
+import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,11 +23,29 @@ import java.util.List;
 @Service
 public class PostServiceImpl implements PostService {
 
-    private  final PostRepository postRepository;
     private final LikeService likeService;
-    public PostServiceImpl(PostRepository postRepository, LikeService likeService) {
+    private final FileStorageService fileStorageService;
+
+    private final PostMediaRepository postMediaRepository;
+    private final LikeRepository likeRepository;
+    private  final PostRepository postRepository;
+    private final UserRepository userRepository;
+    private final CommentRepository commentRepository;
+
+    public PostServiceImpl(PostMediaRepository postMediaRepository, PostRepository postRepository, LikeService likeService, LikeRepository likeRepository, UserRepository userRepository, CommentRepository commentRepository, FileStorageService fileStorageService) {
+        this.postMediaRepository = postMediaRepository;
         this.postRepository = postRepository;
         this.likeService = likeService;
+        this.likeRepository = likeRepository;
+        this.userRepository = userRepository;
+        this.commentRepository = commentRepository;
+        this.fileStorageService = fileStorageService;
+    }
+
+    private UserRole getCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
     }
 
     public Post getPostById(Long id) {
@@ -31,8 +55,13 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public PostDto save(PostDto dto) {
+        UserRole currentUser = getCurrentUser();
+
         Post post = dtotomodel(dto);
+        post.setCreatorUser(currentUser);
+        post.setCreatorName(currentUser.getUsername());
         post.setCreationDate(LocalDateTime.now());
+
         return modeltodto(postRepository.save(post));
     }
 
@@ -61,11 +90,27 @@ public class PostServiceImpl implements PostService {
 
         return modeltodto(postRepository.save(existing));
     }
-    @Override
-    public void delete(Long id) {
-        postRepository.deleteById(id);
-    }
 
+    @Transactional
+    @Override
+    public void delete(Long postId) {
+
+        // 1. fetch media
+        List<PostMedia> mediaList = postMediaRepository.findByPost_IdOrderByIdAsc(postId);
+
+        // 2. delete files from disk
+        for (PostMedia media : mediaList) {
+            fileStorageService.delete(media.getMediaUrl());
+        }
+
+        // 3. delete child records FIRST
+        postMediaRepository.deleteByPost_Id(postId);
+        likeRepository.deleteByPost_Id(postId);
+        commentRepository.deleteByPost_Id(postId);
+
+        // 4. delete post
+        postRepository.deleteById(postId);
+    }
 
     private PostDto modeltodto(Post post) {
         PostDto postDto = new PostDto();
@@ -74,8 +119,25 @@ public class PostServiceImpl implements PostService {
         postDto.setName(post.getName());
         postDto.setDescription(post.getDescription());
         postDto.setImageUrl(post.getImageUrl());
+        postDto.setCreatorName(post.getCreatorName());
+        postDto.setCreatorUserId(post.getCreatorUser() != null ? post.getCreatorUser().getId() : null);
+        postDto.setCreationDate(post.getCreationDate());
         postDto.setLikeCount(likeService.getLikeCount(post.getId()));
         postDto.setLikedByUser(likeService.isLikedByUser(post.getId()));
+        postDto.setMedia(
+                postMediaRepository.findByPost_IdOrderByIdAsc(post.getId())
+                        .stream()
+                        .map(media -> {
+                            PostMediaDto dto = new PostMediaDto();
+                            dto.setId(media.getId());
+                            dto.setPostId(post.getId());
+                            dto.setMediaUrl(media.getMediaUrl());
+                            dto.setMediaType(media.getMediaType());
+                            dto.setOriginalFilename(media.getOriginalFilename());
+                            return dto;
+                        })
+                        .toList()
+        );
 
         return postDto;
     }

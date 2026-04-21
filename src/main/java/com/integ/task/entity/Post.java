@@ -19,5 +19,10 @@ public class Post extends CreatableEntity {
     private String description;
     private String imageUrl;
     private String creatorName;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "creator_user_id", nullable = false)
+    private UserRole creatorUser;
+
     private java.time.LocalDateTime creationDate;
 }
