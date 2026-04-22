@@ -1,0 +1,6 @@
+target/
+.idea/
+.mvn/repository/
+*.iml
+uploads/
+.git/
